@@ -1,338 +1,280 @@
 module Component exposing
-    ( Block, BlockI, Builder, Component, ComponentRef, Library, Lookup, Msg, Preview, PreviewGroup, Ref, Type, View
-    , group
-    , new, withComponent, withComponent_, withControl, withControl_, withMsg, withMsg2, withMsg3, withState, withStateF, withStateF_, withState_, withUnlabelled, withUnlabelledState, withUnlabelledStateF, withUnlabelledStateF_, withUnlabelledState_, withUnlabelled_, withUpdateF, withMsgF, fromPreview, map
-    , previewBlock, identifier, list, list2, bool, int, float, string, oneOf, stringEntryBlock, custom
-    , addVia, build, finish, finish_
-    , toPortalPreview, toPreview
-    , toComponentMsg, withDefault
+    ( Component, Component_, ComponentInstance, ComponentRef, Control, Control_
+    , Preset, Update, View
+    , component, component_, componentWithPortals, componentWithPortals_
+    , preset, withPresets
+    , toRef
     )
 
-{-| TODO: write a description of the module, and write descriptions for each section of the docs
+{-| Component Playground — an interactive component testing library for Elm.
 
-#Re-exported Aliases
+Build interactive playgrounds for your UI components in three steps:
 
-These opaque types are defined and exported from submodules. They are aliased
-and exported here so that it is possible to write explicit type signatures.
+1.  **Components** (this module) define _what_ to render: a set of controls
+    and a view function. Controls describe how to store, edit, and display
+    each parameter your component accepts.
 
-@docs Block, BlockI, Builder, Component, ComponentRef, Library, Lookup, Msg, Preview, PreviewGroup, Ref, Type, View
+2.  **Frames** (`Component.Frame`) define _how_ to present a component on a
+    page. `Frame.fromComponent` gives an interactive frame with a live
+    controls panel. `Frame.presets` adds a preset tab bar across the top.
+    `Frame.static` inserts static HTML. `Frame.gallery` enumerates variants.
+    `Frame.wrap` adds chrome around any frame.
 
-#Groups
+3.  **Playgrounds** (`Component.Playground`) organise frames into named pages
+    and groups, producing a navigable sidebar. Pass the playground tree to
+    `Component.Application.element` to run it.
 
-@docs group
 
-#Constructing Components
+# Core Types
 
-@docs new, withComponent, withComponent_, withControl, withControl_, withMsg, withMsg2, withMsg3, withState, withStateF, withStateF_, withState_, withUnlabelled, withUnlabelledState, withUnlabelledStateF, withUnlabelledStateF_, withUnlabelledState_, withUnlabelled_, withUpdateF, withMsgF, fromPreview, map
+@docs Component, Component_, ComponentInstance, ComponentRef, Control, Control_
 
-#Blocks
 
-@docs previewBlock, identifier, list, list2, bool, int, float, string, oneOf, stringEntryBlock, custom
+# Supporting Types
 
-#Building Blocks
+@docs Preset, Update, View
 
-@docs addVia, build, finish, finish_
 
-#Constructing Previews
+# Component Constructors
 
-@docs toPortalPreview, toPreview
+@docs component, component_, componentWithPortals, componentWithPortals_
 
-#Messages
 
-@docs toComponentMsg
+# Presets
+
+@docs preset, withPresets
+
+
+# References
+
+@docs toRef
 
 -}
 
-import Component.Block as Block
-import Component.Component as Component
-import Component.Ref as Ref
-import Component.Type
+import Component.Internal as Internal
+    exposing
+        ( ComponentRef(..)
+        , Component_(..)
+        )
 import Dict
 import Html exposing (Html)
 
 
 
-{- Re-export types from submodules -}
+-- TYPE RE-EXPORTS
 
 
-type alias Library t msg =
-    Component.Library t msg
-
-
-type alias Component t msg a =
-    Component.Component t msg a
-
-
-type alias Preview t msg =
-    Component.Preview t msg
-
-
-type alias PreviewGroup t msg =
-    Component.PreviewGroup t msg
-
-
-group : String -> List (Preview t msg) -> PreviewGroup t msg
-group =
-    Component.group
-
-
-type alias Block t a =
-    Block.Block t a
-
-
-type alias BlockI t i a =
-    Block.BlockI t i a
-
-
-type alias Lookup t =
-    Block.Lookup t
-
-
-type alias Msg t msg =
-    Component.Msg t msg
-
-
-type alias View msg =
-    Component.View msg
-
-
-type alias Builder t i r a =
-    Block.Builder t i r a
-
-
-type alias ComponentRef =
-    Component.ComponentRef
-
-
-type alias Ref =
-    Ref.Ref
-
-
-type alias Type t =
-    Component.Type.Type t
-
-
-toComponentMsg : msg -> Msg t msg
-toComponentMsg msg =
-    Component.Msg [] msg
-
-
-map : (a -> b) -> Component t msg a -> Component t msg b
-map =
-    Component.map
-
-
-toPreview : { id : String, name : String } -> Component t msg (Html msg) -> Preview t msg
-toPreview meta component =
-    ( meta, Component.map (\html -> ( html, Dict.empty )) component )
-
-
-toPortalPreview : { id : String, name : String } -> Component t msg (View msg) -> Preview t msg
-toPortalPreview meta component =
-    ( meta, component )
-
-
-new : a -> Component t msg a
-new =
-    Component.new
-
-
-previewBlock : Library t msg -> String -> BlockI t ComponentRef (Html msg)
-previewBlock =
-    Component.previewBlock
-
-
-fromPreview : Preview t msg -> ComponentRef
-fromPreview ( meta, _ ) =
-    Component.ComponentRef meta.id
-
-
-withControl : String -> (String -> Block t a) -> a -> Component t msg (a -> b) -> Component t msg b
-withControl label block default =
-    Component.withControl label (\l -> Block.withDefault default (block l))
-
-
-withControl_ : String -> (String -> Block t a) -> Component t msg (a -> b) -> Component t msg b
-withControl_ =
-    Component.withControl
-
-
-withMsg : (a -> msg) -> Component t (Msg t msg) ((a -> Msg t msg) -> r) -> Component t (Msg t msg) r
-withMsg =
-    Component.withMsg
-
-
-withMsg2 : (a -> b -> msg) -> Component t (Msg t msg) ((a -> b -> Msg t msg) -> r) -> Component t (Msg t msg) r
-withMsg2 =
-    Component.withMsg2
-
-
-withMsg3 : (a -> b -> c -> msg) -> Component t (Msg t msg) ((a -> b -> c -> Msg t msg) -> r) -> Component t (Msg t msg) r
-withMsg3 =
-    Component.withMsg3
-
-
-withState : String -> (String -> BlockI t i a) -> i -> Component t (Msg t msg) (a -> (i -> Msg t msg) -> y) -> Component t (Msg t msg) y
-withState label blockF default =
-    withState_ label (\l -> Block.withDefault default (blockF l))
-
-
-withState_ : String -> (String -> BlockI t i a) -> Component t (Msg t msg) (a -> (i -> Msg t msg) -> y) -> Component t (Msg t msg) y
-withState_ label blockF =
-    Component.withState (blockF label) (\get set f -> f get set)
-
-
-withStateF : String -> (String -> BlockI t i a) -> i -> (Ref -> a -> (i -> msg -> Msg t msg) -> x -> y) -> Component t (Msg t msg) x -> Component t (Msg t msg) y
-withStateF label blockF default =
-    withStateF_ label (\l -> Block.withDefault default (blockF l))
-
-
-withStateF_ : String -> (String -> BlockI t i a) -> (Ref -> a -> (i -> msg -> Msg t msg) -> x -> y) -> Component t (Msg t msg) x -> Component t (Msg t msg) y
-withStateF_ label blockF =
-    Component.withStateF (blockF label)
-
-
-withUnlabelledState : BlockI t i a -> i -> Component t (Msg t msg) (a -> (i -> Msg t msg) -> b) -> Component t (Msg t msg) b
-withUnlabelledState block default =
-    withUnlabelledState_ (Block.withDefault default block)
-
-
-withUnlabelledState_ : BlockI t i a -> Component t (Msg t msg) (a -> (i -> Msg t msg) -> b) -> Component t (Msg t msg) b
-withUnlabelledState_ block =
-    Component.withUnlabelledState block (\get set f -> f get set)
-
-
-withUnlabelledStateF : BlockI t i a -> i -> (Ref -> a -> (i -> msg -> Msg t msg) -> x -> y) -> Component t (Msg t msg) x -> Component t (Msg t msg) y
-withUnlabelledStateF block default =
-    withUnlabelledStateF_ (Block.withDefault default block)
-
-
-withUnlabelledStateF_ : BlockI t i a -> (Ref -> a -> (i -> msg -> Msg t msg) -> x -> y) -> Component t (Msg t msg) x -> Component t (Msg t msg) y
-withUnlabelledStateF_ =
-    Component.withStateF
-
-
-withUpdateF :
-    BlockI t i a
-    -> (Ref -> a -> ((a -> ( i, msg )) -> Msg t msg) -> x -> y)
-    -> Component t (Msg t msg) x
-    -> Component t (Msg t msg) y
-withUpdateF =
-    Component.withUpdateF
-
-
-withMsgF :
-    ((msg -> Msg t msg) -> x -> y)
-    -> Component t (Msg t msg) x
-    -> Component t (Msg t msg) y
-withMsgF =
-    Component.withMsgF
-
-
-withComponent : String -> (Library t msg -> String -> BlockI t i b) -> i -> Component t msg (b -> a) -> Component t msg a
-withComponent label block default =
-    Component.withComponent label (\lib l -> Block.withDefault default (block lib l))
-
-
-withComponent_ : String -> (Library t msg -> String -> BlockI t i b) -> Component t msg (b -> a) -> Component t msg a
-withComponent_ =
-    Component.withComponent
-
-
-withUnlabelled : BlockI t i a -> i -> Component t msg (a -> b) -> Component t msg b
-withUnlabelled block default =
-    Component.withUnlabelled (Block.withDefault default block)
-
-
-withUnlabelled_ : BlockI t i a -> Component t msg (a -> b) -> Component t msg b
-withUnlabelled_ =
-    Component.withUnlabelled
-
-
-addVia : (r -> a) -> String -> (String -> BlockI t a a) -> Builder t (a -> b) r (a -> b) -> Builder t b r b
-addVia =
-    Block.addVia
-
-
-build : a -> Builder t a r a
-build =
-    Block.build
-
-
-finish : (i -> a) -> Builder t i i i -> String -> BlockI t i a
-finish f =
-    Block.finishI f
-
-
-finish_ : Builder t a a a -> String -> BlockI t a a
-finish_ =
-    Block.finishI identity
-
-
-identifier : BlockI t String String
-identifier =
-    Block.identifier
-
-
-list : (String -> BlockI t i a) -> String -> BlockI t (List i) (List a)
-list =
-    Block.list
-
-
-list2 : (g -> String -> BlockI t i a) -> g -> String -> BlockI t (List i) (List a)
-list2 =
-    Block.list2
-
-
-string : String -> Block t String
-string =
-    Block.string
-
-
-int : String -> Block t Int
-int =
-    Block.int
-
-
-float : String -> Block t Float
-float =
-    Block.float
-
-
-stringEntryBlock :
-    { toString : a -> String
-    , toType : a -> Type t
-    , fromString : String -> Maybe a
-    , fromType : Type t -> Maybe a
-    , default : a
-    , onError : String -> String
-    }
-    -> String
-    -> Block t a
-stringEntryBlock =
-    Block.stringEntryBlock
-
-
-oneOf : ( a, String ) -> List ( a, String ) -> String -> Block t a
-oneOf =
-    Block.oneOf
-
-
-bool : String -> Block t Bool
-bool =
-    oneOf ( True, "True" ) [ ( False, "False" ) ]
-
-
-custom : (t -> Maybe a) -> (a -> t) -> a -> BlockI t a a
-custom =
-    Block.custom
-
-{-| Override the default value for a block. Use this to get a stable default
-to be referenced in multiple places. Use this when using
-Component.Application.updateAt.
-
-withDefault is used to set the initial value when building Components with
-withControl, withState etc., but not when using withControl_, withState_, etc.
+{-| Alias for the control type used in `Component` records. This is the same
+type as `Control.Control` — re-exported here so users can annotate component
+definitions without importing the `Component.Control` module.
 -}
-withDefault : i -> Block.BlockI t i a -> Block.BlockI t i a
-withDefault = Block.withDefault
+type alias Control e t state =
+    Internal.Control e t state state
+
+
+{-| General control type where storage type `state` may differ from output
+`value`.
+-}
+type alias Control_ e t state value =
+    Internal.Control e t state value
+
+
+{-| A component where storage and output types are the same.
+Create with `component` or `componentWithPortals`.
+-}
+type alias Component e t m msg =
+    Internal.Component_ e t m m msg
+
+
+{-| A component where storage type `i` may differ from output type `m`.
+Create with `component_` or `componentWithPortals_`.
+-}
+type alias Component_ e t i m msg =
+    Internal.Component_ e t i m msg
+
+
+{-| Opaque handle to a specific component instance. Provided to
+`Control.withUpdate` so controls can construct portal content closures
+via `Component.Application.renderPortal`.
+-}
+type alias ComponentInstance =
+    Internal.ComponentInstance
+
+
+{-| Opaque reference to a component. Use `toRef` to create and pass to
+`Control.componentRef` defaults.
+-}
+type alias ComponentRef =
+    Internal.ComponentRef
+
+
+{-| A named preset configuration for a component. Construct with `preset`
+(for the common no-wrap case) or build the record directly to provide a
+per-preset `wrap` function.
+-}
+type alias Preset t i =
+    Internal.Preset t i
+
+
+{-| Update type for component state changes. Tagged with the owning
+ComponentInstance so Application.update can dispatch correctly.
+-}
+type alias Update t =
+    Internal.Update t
+
+
+{-| A view is the main HTML plus optional named portal slots.
+-}
+type alias View msg =
+    Internal.View msg
+
+
+
+-- COMPONENT CONSTRUCTORS
+
+
+{-| Create a component from a plain `Html` view (no portals). This is the
+common case — use `componentWithPortals` if you need named portal slots.
+
+    myButton =
+        Component.component
+            { id = "button"
+            , name = "Button"
+            , controls =
+                Control.builder ButtonModel
+                    |> Control.add "Label" .label Control.string
+                    |> Control.toControl
+            , view =
+                \model setter ->
+                    Html.button [ Html.Events.onClick (setter { model | clicked = True }) ]
+                        [ Html.text model.label ]
+            }
+
+-}
+component :
+    { id : String
+    , name : String
+    , controls : Control e t m
+    , view : m -> (m -> msg) -> Html msg
+    }
+    -> Component e t m msg
+component c =
+    Component_
+        { id = c.id
+        , name = c.name
+        , controls = c.controls
+        , view = \_ m setter -> ( c.view m setter, Dict.empty )
+        , presets = []
+        }
+
+
+{-| Create a component whose view returns named portal slots alongside the
+main HTML. Use `component` instead if you don't need portals.
+-}
+componentWithPortals :
+    { id : String
+    , name : String
+    , controls : Control e t m
+    , view : m -> (m -> msg) -> View msg
+    }
+    -> Component e t m msg
+componentWithPortals c =
+    Component_
+        { id = c.id
+        , name = c.name
+        , controls = c.controls
+        , view = \_ m setter -> c.view m setter
+        , presets = []
+        }
+
+
+{-| Create a component where storage type `i` differs from output type `m`.
+The view receives both the storage record and the mapped output.
+-}
+component_ :
+    { id : String
+    , name : String
+    , controls : Control_ e t i m
+    , view : i -> m -> (i -> msg) -> Html msg
+    }
+    -> Component_ e t i m msg
+component_ c =
+    Component_
+        { id = c.id
+        , name = c.name
+        , controls = c.controls
+        , view = \i m setter -> ( c.view i m setter, Dict.empty )
+        , presets = []
+        }
+
+
+{-| Like `component_`, but the view returns named portal slots.
+-}
+componentWithPortals_ :
+    { id : String
+    , name : String
+    , controls : Control_ e t i m
+    , view : i -> m -> (i -> msg) -> View msg
+    }
+    -> Component_ e t i m msg
+componentWithPortals_ c =
+    Component_
+        { id = c.id
+        , name = c.name
+        , controls = c.controls
+        , view = c.view
+        , presets = []
+        }
+
+
+
+-- PRESETS
+
+
+{-| Build a `Preset` with the default (identity) wrap function. Pair with
+`withPresets` to declare the presets a component offers.
+
+    chart
+        |> Component.withPresets
+            [ Component.preset "Bar" barConfig
+            , Component.preset "Line" lineConfig
+            ]
+
+-}
+preset : String -> i -> Preset t i
+preset name value =
+    { name = name, value = value, wrap = identity }
+
+
+{-| Attach a list of named preset configurations to a component. Each preset
+is a canonical state value for the component's storage type; picking a preset
+replaces the whole state at once.
+
+The first preset in the list becomes the component's initial state.
+
+With presets attached, the component's controls panel gains a "Preset"
+dropdown. When the component is rendered via `Frame.presets`, the dropdown
+is suppressed in favour of a first-class tab bar above the view. Embedded
+components (via `Control.componentRef`) always show the dropdown inline with
+their controls.
+
+-}
+withPresets : List (Preset t i) -> Component_ e t i m msg -> Component_ e t i m msg
+withPresets ps (Component_ c) =
+    Component_ { c | presets = ps }
+
+
+
+-- REFERENCES
+
+
+{-| Extract an opaque component reference. Use this to provide default
+values for `Control.componentRef` controls.
+
+    Control.componentRef
+        |> Control.withDefault (Component.toRef myComponent)
+
+-}
+toRef : Component_ e t i m msg -> ComponentRef
+toRef (Component_ c) =
+    ComponentRef c.id
